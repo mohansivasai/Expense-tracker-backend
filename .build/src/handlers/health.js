@@ -1,8 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.handler = void 0;
-const handler = async (event, context) => {
-    const timestamp = new Date().toISOString();
+const handler = async (context) => {
     return {
         statusCode: 200,
         headers: {
@@ -14,12 +13,16 @@ const handler = async (event, context) => {
         },
         body: JSON.stringify({
             status: 'healthy',
-            timestamp,
+            timestamp: new Date().toISOString(),
             service: 'expense-tracker-backend',
-            environment: process.env.STAGE || 'dev',
-            region: process.env.AWS_REGION || 'us-east-1',
-            memoryLimit: context.memoryLimitInMB,
-            remainingTime: context.getRemainingTimeInMillis(),
+            environment: process.env['STAGE'] || 'dev',
+            region: process.env['AWS_REGION'] || 'us-east-1',
+            lambda: {
+                functionName: context.functionName,
+                functionVersion: context.functionVersion,
+                memoryLimitInMB: context.memoryLimitInMB,
+                remainingTimeInMillis: context.getRemainingTimeInMillis(),
+            },
         }),
     };
 };

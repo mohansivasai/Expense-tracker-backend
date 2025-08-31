@@ -5,9 +5,9 @@ const expenseService_1 = require("../services/expenseService");
 const auth_1 = require("../utils/auth");
 const expenseService = new expenseService_1.ExpenseService();
 const authService = new auth_1.SimpleAuthService();
-const handler = async (event, context) => {
+const handler = async (event) => {
     try {
-        const { httpMethod, path, pathParameters, queryStringParameters, body, headers } = event;
+        const { httpMethod, path, queryStringParameters, body } = event;
         // Extract user ID from the authorizer context (set by API Gateway)
         const userId = event.requestContext.authorizer?.['context']?.['userId'] ||
             event.requestContext.authorizer?.['claims']?.['sub'] ||
@@ -47,7 +47,7 @@ const handler = async (event, context) => {
         }
         // Summary endpoints
         if (pathSegments[0] === 'summary') {
-            return await handleSummaryEndpoints(httpMethod, pathSegments, userId, queryStringParameters);
+            return await handleSummaryEndpoints(httpMethod, userId, queryStringParameters);
         }
         // Categories endpoints
         if (pathSegments[0] === 'categories') {
@@ -249,7 +249,7 @@ async function handleExpenseEndpoints(method, pathSegments, userId, body, queryP
         throw error;
     }
 }
-async function handleSummaryEndpoints(method, pathSegments, userId, queryParams) {
+async function handleSummaryEndpoints(method, userId, queryParams) {
     if (method !== 'GET') {
         return {
             statusCode: 405,
@@ -322,7 +322,6 @@ async function handleCategoryEndpoints(method, pathSegments, userId) {
                         message: 'Category is required',
                     }),
                 };
-                ;
             }
             const expenses = await expenseService.getExpensesByCategory(userId, category);
             return {

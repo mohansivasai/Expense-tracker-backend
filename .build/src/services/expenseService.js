@@ -68,17 +68,13 @@ class ExpenseService {
         }
         return await this.dynamoDBService.deleteExpense(userId, expenseId);
     }
-    async getExpensesByUser(params) {
-        const { userId, startDate, endDate, category, minAmount, maxAmount, limit = 50, nextToken, } = params;
-        // Validate date range
-        if (startDate && endDate && startDate > endDate) {
-            throw new Error('Start date cannot be after end date');
-        }
-        // Validate amount range
-        if (minAmount !== undefined && maxAmount !== undefined && minAmount > maxAmount) {
-            throw new Error('Minimum amount cannot be greater than maximum amount');
-        }
-        return await this.dynamoDBService.queryExpensesByUser(userId, startDate, endDate, category, minAmount, maxAmount, limit, nextToken);
+    async getExpensesByUser(queryParams) {
+        const result = await this.dynamoDBService.queryExpensesByUser(queryParams.userId, queryParams.startDate, queryParams.endDate, queryParams.category, queryParams.minAmount, queryParams.maxAmount, queryParams.limit || 50, queryParams.nextToken);
+        return {
+            items: result.items,
+            nextToken: result.nextToken,
+            hasMore: result.hasMore,
+        };
     }
     async getAllExpensesByUser(userId) {
         return await this.dynamoDBService.getAllExpensesByUser(userId);

@@ -1,4 +1,4 @@
-import { Expense, CreateExpenseRequest, UpdateExpenseRequest, ExpenseQueryParams, PaginationResult } from '../types';
+import { Expense, CreateExpenseRequest, UpdateExpenseRequest, ExpenseQueryParams } from '../types';
 export declare class ExpenseService {
     private dynamoDBService;
     constructor();
@@ -6,7 +6,11 @@ export declare class ExpenseService {
     getExpense(userId: string, expenseId: string): Promise<Expense>;
     updateExpense(userId: string, expenseId: string, updates: UpdateExpenseRequest): Promise<Expense>;
     deleteExpense(userId: string, expenseId: string): Promise<boolean>;
-    getExpensesByUser(params: ExpenseQueryParams): Promise<PaginationResult<Expense>>;
+    getExpensesByUser(queryParams: ExpenseQueryParams): Promise<{
+        items: Expense[];
+        nextToken?: string | undefined;
+        hasMore: boolean;
+    }>;
     getAllExpensesByUser(userId: string): Promise<Expense[]>;
     getExpensesByCategory(userId: string, category: string): Promise<Expense[]>;
     getExpensesByDateRange(userId: string, startDate: string, endDate: string): Promise<Expense[]>;

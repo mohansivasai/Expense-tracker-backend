@@ -166,8 +166,8 @@ class DynamoDBService {
             },
             ExpressionAttributeValues: {
                 ':userId': userId,
-                ':startDate': startDate,
                 ':endDate': endDate,
+                ':startDate': startDate,
             },
         };
         const result = await this.client.send(new lib_dynamodb_1.QueryCommand(params));

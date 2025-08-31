@@ -10,11 +10,11 @@ const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const expenseService_1 = require("./services/expenseService");
 const auth_1 = require("./utils/auth");
 const app = (0, express_1.default)();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env['PORT'] || 3000;
 // Middleware
 app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001'],
+    origin: process.env['ALLOWED_ORIGINS']?.split(',') || ['http://localhost:3000', 'http://localhost:3001'],
     credentials: true,
 }));
 // Rate limiting
@@ -37,19 +37,19 @@ const extractUserId = async (req, res, next) => {
         }
         const authContext = await authService.authenticateRequest(authHeader);
         req.userId = authContext.userId;
-        next();
+        return next();
     }
     catch (error) {
-        res.status(401).json({ error: 'Invalid token' });
+        return res.status(401).json({ error: 'Invalid token' });
     }
 };
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
     res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
         service: 'expense-tracker-backend',
-        environment: process.env.NODE_ENV || 'development',
+        environment: process.env['NODE_ENV'] || 'development',
     });
 });
 // Auth verification endpoint
@@ -60,7 +60,7 @@ app.post('/auth/verify', async (req, res) => {
             return res.status(401).json({ error: 'Authorization header required' });
         }
         const authContext = await authService.authenticateRequest(authHeader);
-        res.json({
+        return res.json({
             success: true,
             data: {
                 userId: authContext.userId,
@@ -71,7 +71,7 @@ app.post('/auth/verify', async (req, res) => {
         });
     }
     catch (error) {
-        res.status(401).json({
+        return res.status(401).json({
             error: 'Unauthorized',
             message: error instanceof Error ? error.message : 'Invalid token',
         });
@@ -92,7 +92,7 @@ app.get('/expenses', extractUserId, async (req, res) => {
             limit: limit ? parseInt(limit) : 50,
             nextToken: nextToken,
         });
-        res.json({
+        return res.json({
             success: true,
             data: result.items,
             nextToken: result.nextToken,
@@ -100,7 +100,7 @@ app.get('/expenses', extractUserId, async (req, res) => {
         });
     }
     catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             error: 'Internal Server Error',
             message: error instanceof Error ? error.message : 'An unexpected error occurred',
         });
@@ -111,7 +111,7 @@ app.post('/expenses', extractUserId, async (req, res) => {
         const userId = req.userId;
         const expenseData = req.body;
         const newExpense = await expenseService.createExpense(userId, expenseData);
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             data: newExpense,
             message: 'Expense created successfully',
@@ -124,7 +124,7 @@ app.post('/expenses', extractUserId, async (req, res) => {
                 message: error.message,
             });
         }
-        res.status(500).json({
+        return res.status(500).json({
             error: 'Internal Server Error',
             message: error instanceof Error ? error.message : 'An unexpected error occurred',
         });
@@ -134,8 +134,14 @@ app.get('/expenses/:id', extractUserId, async (req, res) => {
     try {
         const userId = req.userId;
         const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: 'Expense ID is required',
+            });
+        }
         const expense = await expenseService.getExpense(userId, id);
-        res.json({
+        return res.json({
             success: true,
             data: expense,
         });
@@ -147,7 +153,7 @@ app.get('/expenses/:id', extractUserId, async (req, res) => {
                 message: error.message,
             });
         }
-        res.status(500).json({
+        return res.status(500).json({
             error: 'Internal Server Error',
             message: error instanceof Error ? error.message : 'An unexpected error occurred',
         });
@@ -157,9 +163,15 @@ app.put('/expenses/:id', extractUserId, async (req, res) => {
     try {
         const userId = req.userId;
         const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: 'Expense ID is required',
+            });
+        }
         const updateData = req.body;
         const updatedExpense = await expenseService.updateExpense(userId, id, updateData);
-        res.json({
+        return res.json({
             success: true,
             data: updatedExpense,
             message: 'Expense updated successfully',
@@ -178,7 +190,7 @@ app.put('/expenses/:id', extractUserId, async (req, res) => {
                 message: error.message,
             });
         }
-        res.status(500).json({
+        return res.status(500).json({
             error: 'Internal Server Error',
             message: error instanceof Error ? error.message : 'An unexpected error occurred',
         });
@@ -188,8 +200,14 @@ app.delete('/expenses/:id', extractUserId, async (req, res) => {
     try {
         const userId = req.userId;
         const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: 'Expense ID is required',
+            });
+        }
         await expenseService.deleteExpense(userId, id);
-        res.json({
+        return res.json({
             success: true,
             message: 'Expense deleted successfully',
         });
@@ -201,7 +219,7 @@ app.delete('/expenses/:id', extractUserId, async (req, res) => {
                 message: error.message,
             });
         }
-        res.status(500).json({
+        return res.status(500).json({
             error: 'Internal Server Error',
             message: error instanceof Error ? error.message : 'An unexpected error occurred',
         });
@@ -213,20 +231,20 @@ app.get('/summary', extractUserId, async (req, res) => {
         const userId = req.userId;
         const { startDate, endDate } = req.query;
         const summary = await expenseService.getExpenseSummary(userId, startDate, endDate);
-        res.json({
+        return res.json({
             success: true,
             data: summary,
         });
     }
     catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             error: 'Internal Server Error',
             message: error instanceof Error ? error.message : 'An unexpected error occurred',
         });
     }
 });
 // Category endpoints
-app.get('/categories', extractUserId, async (req, res) => {
+app.get('/categories', extractUserId, async (_req, res) => {
     try {
         const categories = [
             { id: 'food', name: 'Food & Dining', icon: '🍽️', color: '#FF6B6B' },
@@ -238,13 +256,13 @@ app.get('/categories', extractUserId, async (req, res) => {
             { id: 'education', name: 'Education', icon: '📚', color: '#98D8C8' },
             { id: 'other', name: 'Other', icon: '📦', color: '#F7DC6F' },
         ];
-        res.json({
+        return res.json({
             success: true,
             data: categories,
         });
     }
     catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             error: 'Internal Server Error',
             message: error instanceof Error ? error.message : 'An unexpected error occurred',
         });
@@ -254,28 +272,34 @@ app.get('/categories/:category', extractUserId, async (req, res) => {
     try {
         const userId = req.userId;
         const { category } = req.params;
+        if (!category) {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: 'Category is required',
+            });
+        }
         const expenses = await expenseService.getExpensesByCategory(userId, category);
-        res.json({
+        return res.json({
             success: true,
             data: expenses,
         });
     }
     catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             error: 'Internal Server Error',
             message: error instanceof Error ? error.message : 'An unexpected error occurred',
         });
     }
 });
 // 404 handler
-app.use('*', (req, res) => {
+app.use('*', (_req, res) => {
     res.status(404).json({
         error: 'Not Found',
         message: 'Endpoint not found',
     });
 });
 // Error handler
-app.use((error, req, res, next) => {
+app.use((error, _req, res, _next) => {
     console.error('Unhandled error:', error);
     res.status(500).json({
         error: 'Internal Server Error',

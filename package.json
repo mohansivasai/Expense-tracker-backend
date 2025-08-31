@@ -20,7 +20,15 @@
     "local:stop": "docker stop dynamodb-local && docker rm dynamodb-local",
             "test:local": "IS_OFFLINE=true npm test",
         "seed:local": "node scripts/seed-data.js",
-        "test:api": "node scripts/test-api.js"
+        "test:api": "node scripts/test-api.js",
+        "start:local": "node scripts/start-local.js",
+        "data:export": "node scripts/data-manager.js export",
+        "data:import": "node scripts/data-manager.js import",
+        "data:clear": "node scripts/data-manager.js clear",
+        "data:list": "node scripts/data-manager.js list",
+        "data:summary": "node scripts/data-manager.js summary",
+        "data:backup": "node scripts/data-manager.js backup",
+        "data:restore": "node scripts/data-manager.js restore"
   },
   "keywords": [
     "aws",
