@@ -7,12 +7,12 @@ import { SimpleAuthService } from './utils/auth';
 import { CreateExpenseRequest, UpdateExpenseRequest } from './types';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env['PORT'] || 3000;
 
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001'],
+  origin: process.env['ALLOWED_ORIGINS']?.split(',') || ['http://localhost:3000', 'http://localhost:3001'],
   credentials: true,
 }));
 
@@ -40,19 +40,19 @@ const extractUserId = async (req: express.Request, res: express.Response, next: 
 
     const authContext = await authService.authenticateRequest(authHeader);
     (req as any).userId = authContext.userId;
-    next();
+    return next();
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    return res.status(401).json({ error: 'Invalid token' });
   }
 };
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     service: 'expense-tracker-backend',
-    environment: process.env.NODE_ENV || 'development',
+    environment: process.env['NODE_ENV'] || 'development',
   });
 });
 
@@ -65,7 +65,7 @@ app.post('/auth/verify', async (req, res) => {
     }
 
     const authContext = await authService.authenticateRequest(authHeader);
-    res.json({
+    return res.json({
       success: true,
       data: {
         userId: authContext.userId,
@@ -75,7 +75,7 @@ app.post('/auth/verify', async (req, res) => {
       message: 'Token is valid',
     });
   } catch (error) {
-    res.status(401).json({
+    return res.status(401).json({
       error: 'Unauthorized',
       message: error instanceof Error ? error.message : 'Invalid token',
     });
@@ -99,14 +99,14 @@ app.get('/expenses', extractUserId, async (req, res) => {
       nextToken: nextToken as string,
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: result.items,
       nextToken: result.nextToken,
       hasMore: result.hasMore,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Internal Server Error',
       message: error instanceof Error ? error.message : 'An unexpected error occurred',
     });
@@ -119,7 +119,7 @@ app.post('/expenses', extractUserId, async (req, res) => {
     const expenseData: CreateExpenseRequest = req.body;
 
     const newExpense = await expenseService.createExpense(userId, expenseData);
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: newExpense,
       message: 'Expense created successfully',
@@ -131,7 +131,7 @@ app.post('/expenses', extractUserId, async (req, res) => {
         message: error.message,
       });
     }
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Internal Server Error',
       message: error instanceof Error ? error.message : 'An unexpected error occurred',
     });
@@ -142,9 +142,16 @@ app.get('/expenses/:id', extractUserId, async (req, res) => {
   try {
     const userId = (req as any).userId;
     const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Expense ID is required',
+      });
+    }
 
     const expense = await expenseService.getExpense(userId, id);
-    res.json({
+    return res.json({
       success: true,
       data: expense,
     });
@@ -155,7 +162,7 @@ app.get('/expenses/:id', extractUserId, async (req, res) => {
         message: error.message,
       });
     }
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Internal Server Error',
       message: error instanceof Error ? error.message : 'An unexpected error occurred',
     });
@@ -166,10 +173,18 @@ app.put('/expenses/:id', extractUserId, async (req, res) => {
   try {
     const userId = (req as any).userId;
     const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Expense ID is required',
+      });
+    }
+    
     const updateData: UpdateExpenseRequest = req.body;
 
     const updatedExpense = await expenseService.updateExpense(userId, id, updateData);
-    res.json({
+    return res.json({
       success: true,
       data: updatedExpense,
       message: 'Expense updated successfully',
@@ -187,7 +202,7 @@ app.put('/expenses/:id', extractUserId, async (req, res) => {
         message: error.message,
       });
     }
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Internal Server Error',
       message: error instanceof Error ? error.message : 'An unexpected error occurred',
     });
@@ -198,9 +213,16 @@ app.delete('/expenses/:id', extractUserId, async (req, res) => {
   try {
     const userId = (req as any).userId;
     const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Expense ID is required',
+      });
+    }
 
     await expenseService.deleteExpense(userId, id);
-    res.json({
+    return res.json({
       success: true,
       message: 'Expense deleted successfully',
     });
@@ -211,7 +233,7 @@ app.delete('/expenses/:id', extractUserId, async (req, res) => {
         message: error.message,
       });
     }
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Internal Server Error',
       message: error instanceof Error ? error.message : 'An unexpected error occurred',
     });
@@ -230,12 +252,12 @@ app.get('/summary', extractUserId, async (req, res) => {
       endDate as string
     );
 
-    res.json({
+    return res.json({
       success: true,
       data: summary,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Internal Server Error',
       message: error instanceof Error ? error.message : 'An unexpected error occurred',
     });
@@ -243,7 +265,7 @@ app.get('/summary', extractUserId, async (req, res) => {
 });
 
 // Category endpoints
-app.get('/categories', extractUserId, async (req, res) => {
+app.get('/categories', extractUserId, async (_req, res) => {
   try {
     const categories = [
       { id: 'food', name: 'Food & Dining', icon: '🍽️', color: '#FF6B6B' },
@@ -256,12 +278,12 @@ app.get('/categories', extractUserId, async (req, res) => {
       { id: 'other', name: 'Other', icon: '📦', color: '#F7DC6F' },
     ];
 
-    res.json({
+    return res.json({
       success: true,
       data: categories,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Internal Server Error',
       message: error instanceof Error ? error.message : 'An unexpected error occurred',
     });
@@ -272,14 +294,21 @@ app.get('/categories/:category', extractUserId, async (req, res) => {
   try {
     const userId = (req as any).userId;
     const { category } = req.params;
+    
+    if (!category) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Category is required',
+      });
+    }
 
     const expenses = await expenseService.getExpensesByCategory(userId, category);
-    res.json({
+    return res.json({
       success: true,
       data: expenses,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Internal Server Error',
       message: error instanceof Error ? error.message : 'An unexpected error occurred',
     });
@@ -287,7 +316,7 @@ app.get('/categories/:category', extractUserId, async (req, res) => {
 });
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use('*', (_req, res) => {
   res.status(404).json({
     error: 'Not Found',
     message: 'Endpoint not found',
@@ -295,7 +324,7 @@ app.use('*', (req, res) => {
 });
 
 // Error handler
-app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('Unhandled error:', error);
   res.status(500).json({
     error: 'Internal Server Error',

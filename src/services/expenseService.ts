@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DynamoDBService } from '../utils/dynamodb';
-import { Expense, CreateExpenseRequest, UpdateExpenseRequest, ExpenseQueryParams, PaginationResult } from '../types';
+import { Expense, CreateExpenseRequest, UpdateExpenseRequest, ExpenseQueryParams } from '../types';
 
 export class ExpenseService {
   private dynamoDBService: DynamoDBService;
@@ -85,38 +85,27 @@ export class ExpenseService {
     return await this.dynamoDBService.deleteExpense(userId, expenseId);
   }
 
-  async getExpensesByUser(params: ExpenseQueryParams): Promise<PaginationResult<Expense>> {
-    const {
-      userId,
-      startDate,
-      endDate,
-      category,
-      minAmount,
-      maxAmount,
-      limit = 50,
-      nextToken,
-    } = params;
-
-    // Validate date range
-    if (startDate && endDate && startDate > endDate) {
-      throw new Error('Start date cannot be after end date');
-    }
-
-    // Validate amount range
-    if (minAmount !== undefined && maxAmount !== undefined && minAmount > maxAmount) {
-      throw new Error('Minimum amount cannot be greater than maximum amount');
-    }
-
-    return await this.dynamoDBService.queryExpensesByUser(
-      userId,
-      startDate,
-      endDate,
-      category,
-      minAmount,
-      maxAmount,
-      limit,
-      nextToken
+  async getExpensesByUser(queryParams: ExpenseQueryParams): Promise<{
+    items: Expense[];
+    nextToken?: string | undefined;
+    hasMore: boolean;
+  }> {
+    const result = await this.dynamoDBService.queryExpensesByUser(
+      queryParams.userId,
+      queryParams.startDate,
+      queryParams.endDate,
+      queryParams.category,
+      queryParams.minAmount,
+      queryParams.maxAmount,
+      queryParams.limit || 50,
+      queryParams.nextToken
     );
+
+    return {
+      items: result.items,
+      nextToken: result.nextToken,
+      hasMore: result.hasMore,
+    };
   }
 
   async getAllExpensesByUser(userId: string): Promise<Expense[]> {
@@ -159,14 +148,14 @@ export class ExpenseService {
     const averageAmount = totalExpenses > 0 ? totalAmount / totalExpenses : 0;
 
     // Category breakdown
-    const categoryBreakdown: Record<string, { count: number; total: number }> = {};
-    expenses.forEach(expense => {
-      if (!categoryBreakdown[expense.category]) {
-        categoryBreakdown[expense.category] = { count: 0, total: 0 };
-      }
-      categoryBreakdown[expense.category].count++;
-      categoryBreakdown[expense.category].total += expense.amount;
-    });
+         const categoryBreakdown: Record<string, { count: number; total: number }> = {};
+     expenses.forEach(expense => {
+       if (!categoryBreakdown[expense.category]) {
+         categoryBreakdown[expense.category] = { count: 0, total: 0 };
+       }
+       categoryBreakdown[expense.category]!.count++;
+       categoryBreakdown[expense.category]!.total += expense.amount;
+     });
 
     // Monthly breakdown
     const monthlyBreakdown: Record<string, { count: number; total: number }> = {};
@@ -175,8 +164,8 @@ export class ExpenseService {
       if (!monthlyBreakdown[month]) {
         monthlyBreakdown[month] = { count: 0, total: 0 };
       }
-      monthlyBreakdown[month].count++;
-      monthlyBreakdown[month].total += expense.amount;
+      monthlyBreakdown[month]!.count++;
+      monthlyBreakdown[month]!.total += expense.amount;
     });
 
     return {

@@ -31,13 +31,13 @@ export interface UpdateExpenseRequest {
 
 export interface ExpenseQueryParams {
   userId: string;
-  startDate?: string;
-  endDate?: string;
-  category?: string;
-  minAmount?: number;
-  maxAmount?: number;
-  limit?: number;
-  nextToken?: string;
+  startDate?: string | undefined;
+  endDate?: string | undefined;
+  category?: string | undefined;
+  minAmount?: number | undefined;
+  maxAmount?: number | undefined;
+  limit?: number | undefined;
+  nextToken?: string | undefined;
 }
 
 export interface ExpenseResponse {
@@ -66,7 +66,7 @@ export interface DynamoDBItem {
 
 export interface PaginationResult<T> {
   items: T[];
-  nextToken?: string;
+  nextToken?: string | undefined;
   hasMore: boolean;
 }
 

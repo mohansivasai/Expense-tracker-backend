@@ -1,5 +1,4 @@
 service: expense-tracker-backend
-
 frameworkVersion: '3'
 
 provider:
@@ -10,6 +9,7 @@ provider:
   environment:
     DYNAMODB_TABLE: ${self:service}-${self:provider.stage}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    IS_OFFLINE: ${self:custom.isOffline}
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -133,7 +133,30 @@ resources:
 custom:
   userPoolArn: !GetAtt CognitoUserPool.Arn
   tableName: ${self:provider.environment.DYNAMODB_TABLE}
+  isOffline: false
+  dynamodb:
+    start:
+      port: 8000
+      inMemory: true
+      migrate: true
+      seed: true
+      convertEmptyValues: true
+      # Uncomment only if you already have a DynamoDB running locally
+      # noStart: true
+  serverless-offline:
+    httpPort: 3000
+    lambdaPort: 3002
+    noPrependStageInUrl: true
+    useChildProcesses: true
+    # Uncomment to use existing DynamoDB local
+    # dynamodb:
+    #   start:
+    #     port: 8000
+    #     inMemory: false
+    #     dbPath: "./.dynamodb/"
+    #     migrate: true
 
 plugins:
   - serverless-plugin-typescript
   - serverless-offline
+

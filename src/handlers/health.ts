@@ -1,11 +1,8 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { APIGatewayProxyResult, Context } from 'aws-lambda';
 
 export const handler = async (
-  event: APIGatewayProxyEvent,
   context: Context
 ): Promise<APIGatewayProxyResult> => {
-  const timestamp = new Date().toISOString();
-  
   return {
     statusCode: 200,
     headers: {
@@ -17,12 +14,16 @@ export const handler = async (
     },
     body: JSON.stringify({
       status: 'healthy',
-      timestamp,
+      timestamp: new Date().toISOString(),
       service: 'expense-tracker-backend',
-      environment: process.env.STAGE || 'dev',
-      region: process.env.AWS_REGION || 'us-east-1',
-      memoryLimit: context.memoryLimitInMB,
-      remainingTime: context.getRemainingTimeInMillis(),
+      environment: process.env['STAGE'] || 'dev',
+      region: process.env['AWS_REGION'] || 'us-east-1',
+      lambda: {
+        functionName: context.functionName,
+        functionVersion: context.functionVersion,
+        memoryLimitInMB: context.memoryLimitInMB,
+        remainingTimeInMillis: context.getRemainingTimeInMillis(),
+      },
     }),
   };
 };

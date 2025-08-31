@@ -1,4 +1,4 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { ExpenseService } from '../services/expenseService';
 import { SimpleAuthService } from '../utils/auth';
 import { CreateExpenseRequest, UpdateExpenseRequest, ExpenseQueryParams } from '../types';
@@ -7,15 +7,14 @@ const expenseService = new ExpenseService();
 const authService = new SimpleAuthService();
 
 export const handler = async (
-  event: APIGatewayProxyEvent,
-  context: Context
+  event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
   try {
-    const { httpMethod, path, pathParameters, queryStringParameters, body, headers } = event;
+    const { httpMethod, path, queryStringParameters, body } = event;
     
     // Extract user ID from the authorizer context (set by API Gateway)
-    const userId = event.requestContext.authorizer?.context?.userId || 
-                   event.requestContext.authorizer?.claims?.sub ||
+    const userId = event.requestContext.authorizer?.['context']?.['userId'] || 
+                   event.requestContext.authorizer?.['claims']?.['sub'] ||
                    'test-user-id'; // Fallback for development
 
     // Route based on path and method
@@ -58,7 +57,7 @@ export const handler = async (
 
     // Summary endpoints
     if (pathSegments[0] === 'summary') {
-      return await handleSummaryEndpoints(httpMethod, pathSegments, userId, queryStringParameters);
+      return await handleSummaryEndpoints(httpMethod, userId, queryStringParameters);
     }
 
     // Categories endpoints
@@ -101,7 +100,7 @@ async function handleExpenseEndpoints(
       case 'GET':
         if (pathSegments.length === 1) {
           // GET /expenses - list expenses with filters
-          const queryParams: ExpenseQueryParams = {
+          const expenseQueryParams: ExpenseQueryParams = {
             userId,
             startDate: queryParams?.startDate,
             endDate: queryParams?.endDate,
@@ -112,7 +111,7 @@ async function handleExpenseEndpoints(
             nextToken: queryParams?.nextToken,
           };
 
-          const result = await expenseService.getExpensesByUser(queryParams);
+          const result = await expenseService.getExpensesByUser(expenseQueryParams);
           
           return {
             statusCode: 200,
@@ -127,6 +126,16 @@ async function handleExpenseEndpoints(
         } else if (pathSegments.length === 2) {
           // GET /expenses/{id} - get specific expense
           const expenseId = pathSegments[1];
+          if (!expenseId) {
+            return {
+              statusCode: 400,
+              headers: getCorsHeaders(),
+              body: JSON.stringify({
+                error: 'Bad Request',
+                message: 'Expense ID is required',
+              }),
+            };
+          }
           const expense = await expenseService.getExpense(userId, expenseId);
           
           return {
@@ -184,6 +193,16 @@ async function handleExpenseEndpoints(
           }
 
           const expenseId = pathSegments[1];
+          if (!expenseId) {
+            return {
+              statusCode: 400,
+              headers: getCorsHeaders(),
+              body: JSON.stringify({
+                error: 'Bad Request',
+                message: 'Expense ID is required',
+              }),
+            };
+          }
           const updateData: UpdateExpenseRequest = JSON.parse(body);
           const updatedExpense = await expenseService.updateExpense(userId, expenseId, updateData);
           
@@ -203,6 +222,16 @@ async function handleExpenseEndpoints(
         if (pathSegments.length === 2) {
           // DELETE /expenses/{id} - delete expense
           const expenseId = pathSegments[1];
+          if (!expenseId) {
+            return {
+              statusCode: 400,
+              headers: getCorsHeaders(),
+              body: JSON.stringify({
+                error: 'Bad Request',
+                message: 'Expense ID is required',
+              }),
+            };
+          }
           await expenseService.deleteExpense(userId, expenseId);
           
           return {
@@ -255,7 +284,6 @@ async function handleExpenseEndpoints(
 
 async function handleSummaryEndpoints(
   method: string,
-  pathSegments: string[],
   userId: string,
   queryParams: any
 ): Promise<APIGatewayProxyResult> {
@@ -330,6 +358,16 @@ async function handleCategoryEndpoints(
     } else if (pathSegments.length === 2) {
       // GET /categories/{category} - get expenses by category
       const category = pathSegments[1];
+      if (!category) {
+        return {
+          statusCode: 400,
+          headers: getCorsHeaders(),
+          body: JSON.stringify({
+            error: 'Bad Request',
+            message: 'Category is required',
+          }),
+        };
+      }
       const expenses = await expenseService.getExpensesByCategory(userId, category);
       
       return {
@@ -358,7 +396,7 @@ async function handleCategoryEndpoints(
 
 async function handleAuthVerify(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
-    const authHeader = event.headers.Authorization || event.headers.authorization;
+    const authHeader = event.headers['Authorization'] || event.headers['authorization'];
     
     if (!authHeader) {
       return {

@@ -1,19 +1,21 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { Expense, DynamoDBItem, PaginationResult } from '../types';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { Expense, PaginationResult } from '../types';
 
 export class DynamoDBService {
   private client: DynamoDBDocumentClient;
   private tableName: string;
 
+  private isOffline = process.env['IS_OFFLINE'] === 'true';
+
   constructor() {
     const dynamoClient = new DynamoDBClient({
-      region: process.env.AWS_REGION || 'us-east-1',
+      region: process.env['AWS_REGION'] || 'us-east-1',
+      ...(this.isOffline && { endpoint: "http://localhost:8000" })
     });
     
     this.client = DynamoDBDocumentClient.from(dynamoClient);
-    this.tableName = process.env.DYNAMODB_TABLE || 'expense-tracker-backend-dev';
+    this.tableName = process.env['DYNAMODB_TABLE'] || 'expense-tracker-backend-dev';
   }
 
   async createExpense(expense: Expense): Promise<Expense> {
@@ -69,7 +71,7 @@ export class DynamoDBService {
       UpdateExpression: `SET ${updateExpression.join(', ')}`,
       ExpressionAttributeNames: expressionAttributeNames,
       ExpressionAttributeValues: expressionAttributeValues,
-      ReturnValues: 'ALL_NEW',
+      ReturnValues: 'ALL_NEW' as const,
     };
 
     const result = await this.client.send(new UpdateCommand(params));
@@ -201,8 +203,8 @@ export class DynamoDBService {
       },
       ExpressionAttributeValues: {
         ':userId': userId,
-        ':startDate': startDate,
         ':endDate': endDate,
+        ':startDate': startDate,
       },
     };
 
