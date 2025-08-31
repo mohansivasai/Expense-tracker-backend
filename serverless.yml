@@ -1,0 +1,139 @@
+service: expense-tracker-backend
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  environment:
+    DYNAMODB_TABLE: ${self:service}-${self:provider.stage}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+    - Effect: Allow
+      Action:
+        - cognito-idp:AdminGetUser
+        - cognito-idp:AdminListGroupsForUser
+      Resource: "*"
+
+functions:
+  api:
+    handler: src/handlers/api.handler
+    events:
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors: true
+          authorizer:
+            name: cognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: ${self:custom.userPoolArn}
+      - http:
+          path: /health
+          method: GET
+          cors: true
+      - http:
+          path: /auth/verify
+          method: POST
+          cors: true
+
+  # Separate function for health check (no auth required)
+  health:
+    handler: src/handlers/health.handler
+    events:
+      - http:
+          path: /health
+          method: GET
+          cors: true
+
+resources:
+  Resources:
+    # DynamoDB Table
+    ExpensesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: expenseId
+            AttributeType: S
+          - AttributeName: date
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: expenseId
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: UserDateIndex
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: date
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+    # Cognito User Pool (if not using existing one)
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: ${self:service}-${self:provider.stage}
+        AutoVerifiedAttributes:
+          - email
+        UsernameAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireSymbols: true
+            RequireUppercase: true
+
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: ${self:service}-${self:provider.stage}-client
+        UserPoolId: !Ref CognitoUserPool
+        ExplicitAuthFlows:
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+        GenerateSecret: false
+
+  Outputs:
+    UserPoolId:
+      Description: "ID of the Cognito User Pool"
+      Value: !Ref CognitoUserPool
+      Export:
+        Name: ${self:service}-${self:provider.stage}-UserPoolId
+    UserPoolClientId:
+      Description: "ID of the Cognito User Pool Client"
+      Value: !Ref CognitoUserPoolClient
+      Export:
+        Name: ${self:service}-${self:provider.stage}-UserPoolClientId
+    DynamoDBTable:
+      Description: "DynamoDB table name"
+      Value: !Ref ExpensesTable
+      Export:
+        Name: ${self:service}-${self:provider.stage}-TableName
+
+custom:
+  userPoolArn: !GetAtt CognitoUserPool.Arn
+  tableName: ${self:provider.environment.DYNAMODB_TABLE}
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
